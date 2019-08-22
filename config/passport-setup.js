@@ -16,8 +16,9 @@ passport.serializeUser(function(user, cb) {
         if(res.length > 0){
              return cb(null,res[0]);
         };
+        cb(null, null);
     });
-    cb(null, null);
+    // cb(null, null);
    });
 
 passport.use(

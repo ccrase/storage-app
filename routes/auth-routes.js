@@ -3,13 +3,16 @@ const passport = require('passport');
 
 //auth login
 router.get('/login', (req, res)=>{
-    res.render('login');
+    res.render('login', {user:req.user});
 });
 
 //auth logout
 router.get('/logout', (req, res) =>{
-    //handle with passport
-    res.send('logging out');
+    //handled with passport
+    req.logout()
+    //redirect to the homepage
+    res.redirect('/');
+    console.log("user is now logged out");
 })
 
 //auth with google setting the strategy
@@ -21,8 +24,7 @@ router.get('/google', passport.authenticate('google', {
 //callback route for google to redirect to.
 router.get('/google/redirect', passport.authenticate('google'), (req,res) => {
     //the user is NOW logged in
-    //res.send(req.user);
-    res.send('you reached the callback URI');
+    res.redirect('/profile/');
 });
 
 module.exports = router;
