@@ -1,19 +1,24 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20');
 const keys = require('./keys');
-const mysql = require('mysql');
+const connection = require('./connection');
 
-var connection = mysql.createConnection({
-    port: 3306,
-    user: "root",
-    password: "",
-    database: "storageapp_DB"
-});
+//method takes the user and performs serialize action
+passport.serializeUser(function(user, cb) {
+    cb(null, user.customer_id);
+   });
 
-connection.connect(function(err){
-    if(err) throw err;
-    console.log("DB connection successful");
-});
+   passport.deserializeUser(function(customer_id, cb) {
+    var sql = "SELECT * FROM customers WHERE customer_id = ?";
+    var values = [customer_id];
+    connection.query(sql, values, function(err, res){
+        if(err) throw err;
+        if(res.length > 0){
+             return cb(null,res[0]);
+        };
+    });
+    cb(null, null);
+   });
 
 passport.use(
     new GoogleStrategy({
@@ -24,40 +29,42 @@ passport.use(
 
 }, (accessToken, refreshToken, profile, done)=>{
     //passport callback function
-
+    console.log(profile);
     //returns user data in object
-    var google_id = profile.id;
+    
     var username = profile.displayName;
     var first_name = profile.name.givenName;
     var last_name = profile.name.familyName;
+    var google_id = profile.id;
+
     //check to see if user has been to the site before
-    connection.query("SELECT id, username FROM user;", function(err, res){
-        for(var i = 0; i < res.length; i++){
-            //if the user already exists
-            if(res[i].id === google_id){
-                console.log("User exists with username = " + res[i].username);
-            }else{
-                //if the user doesn't exist
-                console.log("user doesn't exist. Adding into DB...");
-                //function to add the user into the db
-                addUser();
-            };
+    var sql = "SELECT * FROM customers WHERE google_id = ?;";
+    var values = [google_id];
+    connection.query(sql, values, function(err, res){
+        if(err) throw err;
+        if(res.length > 0){
+             return done(null,res[0]);
         };
+        addUser(done);
     });
 
     //adds a new user into the db 
-    function addUser(){
+    function addUser(cb){
         //if they have, RETRIEVE data
         //if they haven't, CREATE a new record
-        var sql = "INSERT INTO user (google_id, username, first_name, last_name) VALUES ?";
-        var values = [[google_id,username,first_name,last_name]];
+        var sql = "INSERT INTO customers (username, first_name, last_name, google_id) VALUES ?;";
+        var values = [[username, first_name, last_name, google_id]];
         connection.query(sql, [values], function(err, res){
             if(err) throw err;
+            connection.query("SELECT * FROM customers WHERE customer_id = LAST_INSERT_ID();", function(err, res){
+                console.log("Added new user into database" + JSON.stringify(res));
+                cb(null, res[0])
+            })
+
         });
-        connection.end();
     };
 
-
+ 
     
 })
 );
